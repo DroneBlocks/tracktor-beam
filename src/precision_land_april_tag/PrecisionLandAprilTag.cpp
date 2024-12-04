@@ -22,8 +22,8 @@ PrecisionLandAprilTag::PrecisionLandAprilTag(rclcpp::Node& node)
 
 	_vehicle_attitude = std::make_shared<px4_ros2::OdometryAttitude>(*this);
 
-	_target_pose_sub = _node.create_subscription<geometry_msgs::msg::PoseStamped>("/target_pose",
-			   rclcpp::QoS(1).best_effort(), std::bind(&PrecisionLandAprilTag::targetPoseCallback, this, std::placeholders::_1));
+	// _target_pose_sub = _node.create_subscription<geometry_msgs::msg::PoseStamped>("/target_pose",
+	// 		   rclcpp::QoS(1).best_effort(), std::bind(&PrecisionLandAprilTag::targetPoseCallback, this, std::placeholders::_1));
 
 	_detections_sub = _node.create_subscription<tf2_msgs::msg::TFMessage>("/tf",
 			   rclcpp::QoS(1).best_effort(), std::bind(&PrecisionLandAprilTag::detectionsCallback, this, std::placeholders::_1));
@@ -64,7 +64,7 @@ void PrecisionLandAprilTag::vehicleLandDetectedCallback(const px4_msgs::msg::Veh
 void PrecisionLandAprilTag::targetPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
 	if (_search_started) {
-		auto tag = ArucoTag {
+		auto tag = AprilTag {
 			.position = Eigen::Vector3d(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z),
 			.orientation = Eigen::Quaterniond(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z),
 			.timestamp = _node.now(),
@@ -78,43 +78,42 @@ void PrecisionLandAprilTag::targetPoseCallback(const geometry_msgs::msg::PoseSta
 
 void PrecisionLandAprilTag::detectionsCallback(const tf2_msgs::msg::TFMessage msg)
 {
-	RCLCPP_INFO(_node.get_logger(), "Received TFMessage with %zu transforms", msg.transforms.size());
+	// RCLCPP_INFO(_node.get_logger(), "Received TFMessage with %zu transforms", msg.transforms.size());
     
     for (const auto &transform : msg.transforms) {
-        // Print frame IDs
-        RCLCPP_INFO(_node.get_logger(), "Frame: %s -> Child Frame: %s",
-                    transform.header.frame_id.c_str(),
-                    transform.child_frame_id.c_str());
+        // // Print frame IDs
+        // RCLCPP_INFO(_node.get_logger(), "Frame: %s -> Child Frame: %s",
+        //             transform.header.frame_id.c_str(),
+        //             transform.child_frame_id.c_str());
         
-        // Print translation
-        RCLCPP_INFO(_node.get_logger(), "Translation: [x: %f, y: %f, z: %f]",
-                    transform.transform.translation.x,
-                    transform.transform.translation.y,
-                    transform.transform.translation.z);
+        // // Print translation
+        // RCLCPP_INFO(_node.get_logger(), "Translation: [x: %f, y: %f, z: %f]",
+        //             transform.transform.translation.x,
+        //             transform.transform.translation.y,
+        //             transform.transform.translation.z);
         
-        // Print rotation (quaternion)
-        RCLCPP_INFO(_node.get_logger(), "Rotation: [x: %f, y: %f, z: %f, w: %f]",
-                    transform.transform.rotation.x,
-                    transform.transform.rotation.y,
-                    transform.transform.rotation.z,
-                    transform.transform.rotation.w);
+        // // Print rotation (quaternion)
+        // RCLCPP_INFO(_node.get_logger(), "Rotation: [x: %f, y: %f, z: %f, w: %f]",
+        //             transform.transform.rotation.x,
+        //             transform.transform.rotation.y,
+        //             transform.transform.rotation.z,
+        //             transform.transform.rotation.w);
 
-		// geometry_msgs::msg::PoseStamped pose_msg;
-		// pose_msg.header.stamp = transform.header.stamp;
-		// pose_msg.header.frame_id = transform.header.frame_id.c_str();
-		// pose_msg.pose.position.x = transform.transform.translation.x;
-		// pose_msg.pose.position.y = transform.transform.translation.y;
-		// pose_msg.pose.position.z = transform.transform.translation.z;
-		// pose_msg.pose.orientation.x = transform.transform.rotation.x;
-		// pose_msg.pose.orientation.y = transform.transform.rotation.y;
-		// pose_msg.pose.orientation.z = transform.transform.rotation.z;
-		// pose_msg.pose.orientation.w = transform.transform.rotation.w;
+		if (_search_started) {
+			auto tag = AprilTag {
+				.position = Eigen::Vector3d(transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z),
+				.orientation = Eigen::Quaterniond(transform.transform.rotation.w, transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z),
+				.timestamp = _node.now(),
+			};
 
-		// _target_pose_pub->publish(pose_msg);
+			// Save tag position/orientation in NED world frame
+			_tag = getTagWorld(tag);
+		}
+
     }
 }
 
-PrecisionLandAprilTag::ArucoTag PrecisionLandAprilTag::getTagWorld(const ArucoTag& tag)
+PrecisionLandAprilTag::AprilTag PrecisionLandAprilTag::getTagWorld(const AprilTag& tag)
 {
 	// Convert from optical to NED
 	// Optical: X right, Y down, Z away from lens
@@ -133,7 +132,7 @@ PrecisionLandAprilTag::ArucoTag PrecisionLandAprilTag::getTagWorld(const ArucoTa
 	Eigen::Affine3d tag_transform = Eigen::Translation3d(tag.position) * tag.orientation;
 	Eigen::Affine3d tag_world_transform = drone_transform * camera_transform * tag_transform;
 
-	ArucoTag world_tag = {
+	AprilTag world_tag = {
 		.position = tag_world_transform.translation(),
 		.orientation = Eigen::Quaterniond(tag_world_transform.rotation()),
 		.timestamp = tag.timestamp,
@@ -175,6 +174,12 @@ void PrecisionLandAprilTag::updateSetpoint(float dt_s)
 	}
 
 	case State::Search: {
+
+		RCLCPP_INFO(
+        _node.get_logger(), 
+        "!std::isnan(_tag.position.x()): %s", 
+        !std::isnan(_tag.position.x()) ? "true" : "false"
+    	);
 
 		if (!std::isnan(_tag.position.x())) {
 			_approach_altitude = _vehicle_local_position->positionNed().z();

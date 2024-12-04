@@ -7,6 +7,7 @@
 #include <px4_msgs/msg/vehicle_land_detected.hpp>
 #include <px4_ros2/control/setpoint_types/experimental/trajectory.hpp>
 #include <tf2_msgs/msg/tf_message.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -32,7 +33,7 @@ public:
 	void updateSetpoint(float dt_s) override;
 
 private:
-	struct ArucoTag {
+	struct AprilTag {
 		// Initialize position with NaN values directly in the struct
 		Eigen::Vector3d position = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
 		Eigen::Quaterniond orientation;
@@ -43,7 +44,7 @@ private:
 
 	void loadParameters();
 
-	ArucoTag getTagWorld(const ArucoTag& tag);
+	AprilTag getTagWorld(const AprilTag& tag);
 
 	Eigen::Vector2f calculateVelocitySetpointXY();
 	bool checkTargetTimeout();
@@ -62,7 +63,7 @@ private:
 
 	// ros2
 	rclcpp::Node& _node;
-	rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _target_pose_sub;
+	// rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _target_pose_sub;
 	rclcpp::Subscription<px4_msgs::msg::VehicleLandDetected>::SharedPtr _vehicle_land_detected_sub;
 	rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr _detections_sub;
 
@@ -75,7 +76,7 @@ private:
 	State _state = State::Search;
 	bool _search_started = false;
 
-	ArucoTag _tag;
+	AprilTag _tag;
 	float _approach_altitude = {};
 
 	// Land detection
