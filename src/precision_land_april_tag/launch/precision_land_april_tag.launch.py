@@ -17,6 +17,19 @@ def generate_launch_description():
             name='camera_info_bridge_process',
             output='screen',
         ),
+         Node(
+            package='apriltag_ros',
+            executable='apriltag_node',
+            name='apriltag_node',
+            remappings=[
+                ('image_rect', '/camera'),
+                ('camera_info', '/camera_info')
+            ]
+        ),
+        # ExecuteProcess(
+        #     cmd=['screen', '-dmS', 'dds_agent', 'bash', '-c', 'MicroXRCEAgent udp4 -p 8888'],
+        #     name='dds_agent_process'
+        # ),
         Node(
             package='precision_land_april_tag',
             executable='precision_land_april_tag',
