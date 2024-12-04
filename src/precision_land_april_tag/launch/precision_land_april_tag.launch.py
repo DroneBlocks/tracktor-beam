@@ -21,6 +21,9 @@ def generate_launch_description():
             package='apriltag_ros',
             executable='apriltag_node',
             name='apriltag_node',
+            parameters=[
+                PathJoinSubstitution([FindPackageShare('precision_land_april_tag'), 'cfg', 'tags_36h11.yaml'])
+            ],
             remappings=[
                 ('image_rect', '/camera'),
                 ('camera_info', '/camera_info')
